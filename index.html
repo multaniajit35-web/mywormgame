@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worm Zone - Map & Food Improved</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+        body {
+            background-color: #0d1317;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* ---------------- LOBBY SCREEN ---------------- */
+        #lobby-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle at center, #1a3c40, #0d1317);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 30px 20px;
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+        #lobby-screen.hidden {
+            display: none;
+        }
+
+        .lobby-title {
+            font-size: 42px;
+            font-weight: 900;
+            color: #ffeb3b;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.7), 0 0 20px #ff9800;
+            letter-spacing: 2px;
+            margin-top: 10px;
+        }
+
+        .preview-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        canvas#previewCanvas {
+            background: rgba(0, 0, 0, 0.3);
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .color-palette {
+            display: flex;
+            gap: 12px;
+        }
+        .color-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 3px solid white;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+        }
+        .color-btn:hover, .color-btn.active {
+            transform: scale(1.25);
+            box-shadow: 0 0 15px white;
+        }
+
+        #play-btn {
+            padding: 16px 60px;
+            font-size: 28px;
+            font-weight: 900;
+            color: white;
+            background: linear-gradient(180deg, #76ff03, #388e3c);
+            border: 4px solid #ccff90;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(118, 255, 3, 0.5), inset 0 2px 5px rgba(255,255,255,0.6);
+            transition: transform 0.1s, background 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+        #play-btn:hover {
+            transform: scale(1.08);
+            background: linear-gradient(180deg, #b2ff59, #2e7d32);
+        }
+        #play-btn:active {
+            transform: scale(0.95);
+        }
+
+        .lobby-ad-holder {
+            width: 100%;
+            max-width: 728px;
+            height: 90px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #888;
+            font-size: 14px;
+        }
+
+        /* ---------------- GAME SCREEN ---------------- */
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: none;
+        }
+        #game-container.active {
+            display: block;
+        }
+        canvas#gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .top-ui {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85%;
+            max-width: 450px;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 10;
+        }
+        .score-display {
+            font-size: 18px;
+            font-weight: 800;
+            color: #ffeb3b;
+        }
+
+        #minimap-container {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            width: 130px;
+            height: 130px;
+            background: rgba(10, 25, 30, 0.9);
+            border: 3px solid #00bcd4;
+            border-radius: 12px;
+            overflow: hidden;
+            z-index: 10;
+            box-shadow: 0 0 15px rgba(0, 188, 212, 0.4);
+        }
+        canvas#minimapCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #magnet-status {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            background: rgba(255, 87, 34, 0.85);
+            border: 2px solid #fff;
+            border-radius: 12px;
+            padding: 8px 15px;
+            font-weight: bold;
+            display: none;
+            z-index: 10;
+            box-shadow: 0 0 10px #ff5722;
+        }
+
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.88);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+        #game-over.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        #game-over h2 {
+            font-size: 38px;
+            color: #ff5252;
+        }
+
+        .gameover-ad-holder {
+            width: 300px;
+            height: 250px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px dashed #ff9800;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+            font-size: 14px;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 15px;
+        }
+        .game-btn {
+            padding: 12px 28px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+        }
+        #restart-btn { background: #4caf50; }
+        #lobby-btn-go { background: #00bcd4; }
+    </style> 
+    <meta 
+    name="monetag" content="14a41bc247fd75f46b9111cbf8e65c4e">
+</head>
+<body>
+
+    <div id="lobby-screen">
+        <div class="lobby-title">WORM ZONE</div>
+
+        <div class="preview-container">
+            <canvas id="previewCanvas" width="300" height="220"></canvas>
+            <div class="color-palette" id="colorPalette"></div>
+        </div>
+
+        <button id="play-btn" onclick="startGame()">PLAY</button>
+
+        <div class="lobby-ad-holder" id="lobby-ad-slot">
+            <span>📢 विज्ञापन स्थान (Banner Ad Placeholder)</span>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <div id="minimap-container">
+            <canvas id="minimapCanvas" width="130" height="130"></canvas>
+        </div>
+
+        <div class="top-ui">
+            <div class="score-display">Score: <span id="score">0</span></div>
+        </div>
+
+        <div id="magnet-status">🧲 चुंबक सक्रिय: <span id="magnet-timer">10</span>s</div>
+
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="game-over">
+            <h2>गेम ओवर!</h2>
+            <p>आपका स्कोर: <span id="final-score">0</span></p>
+
+            <div class="gameover-ad-holder" id="gameover-ad-slot">
+                <span>📺 गेम ओवर विज्ञापन स्थान<br>(AdSense / AdMob Banner)</span>
+            </div>
+
+            <div class="btn-group">
+                <button class="game-btn" id="restart-btn" onclick="restartGame()">दोबारा खेलें</button>
+                <button class="game-btn" id="lobby-btn-go" onclick="returnToLobby()">लॉबी में जाएं</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const playerColorOptions = [
+            { name: 'White', head: '#ffffff', body1: '#ffffff', body2: '#d6d6d6' },
+            { name: 'Yellow', head: '#ffeb3b', body1: '#ffeb3b', body2: '#fbc02d' },
+            { name: 'Red', head: '#ff2a2a', body1: '#ff5252', body2: '#d32f2f' },
+            { name: 'Cyan', head: '#00e5ff', body1: '#18ffff', body2: '#00b0ff' },
+            { name: 'Green', head: '#76ff03', body1: '#b2ff59', body2: '#64dd17' },
+            { name: 'Purple', head: '#e040fb', body1: '#ea80fc', body2: '#aa00ff' }
+        ];
+
+        let selectedColorIndex = 0;
+
+        const prevCanvas = document.getElementById('previewCanvas');
+        const prevCtx = prevCanvas.getContext('2d');
+        let previewAnimFrame;
+
+        function drawSnakePreview() {
+            prevCtx.clearRect(0, 0, prevCanvas.width, prevCanvas.height);
+            let color = playerColorOptions[selectedColorIndex];
+            let time = Date.now() * 0.005;
+            let centerX = prevCanvas.width / 2;
+            let centerY = prevCanvas.height / 2;
+
+            let radius = 18;
+            for (let i = 15; i >= 0; i--) {
+                let waveX = centerX - i * 10 + Math.sin(time + i * 0.3) * 12;
+                let waveY = centerY + Math.cos(time + i * 0.3) * 8;
+                prevCtx.fillStyle = (i % 2 === 0) ? color.body1 : color.body2;
+                prevCtx.beginPath();
+                prevCtx.arc(waveX, waveY, radius, 0, Math.PI * 2);
+                prevCtx.fill();
+                prevCtx.strokeStyle = 'rgba(0,0,0,0.2)';
+                prevCtx.stroke();
+            }
+
+            let headX = centerX + 10 + Math.sin(time) * 12;
+            let headY = centerY + Math.cos(time) * 8;
+            prevCtx.fillStyle = color.head;
+            prevCtx.beginPath();
+            prevCtx.arc(headX, headY, radius + 2, 0, Math.PI * 2);
+            prevCtx.fill();
+
+            prevCtx.fillStyle = '#000000';
+            prevCtx.beginPath(); prevCtx.arc(headX + 5, headY - 6, 5, 0, Math.PI * 2); prevCtx.fill();
+            prevCtx.beginPath(); prevCtx.arc(headX + 5, headY + 6, 5, 0, Math.PI * 2); prevCtx.fill();
+
+            previewAnimFrame = requestAnimationFrame(drawSnakePreview);
+        }
+
+        const paletteContainer = document.getElementById('colorPalette');
+        playerColorOptions.forEach((col, idx) => {
+            let btn = document.createElement('div');
+            btn.className = 'color-btn' + (idx === 0 ? ' active' : '');
+            btn.style.backgroundColor = col.head;
+            btn.onclick = () => {
+                document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedColorIndex = idx;
+            };
+            paletteContainer.appendChild(btn);
+        });
+
+        drawSnakePreview();
+
+        // ---------------- GAME ENGINE ----------------
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const minimapCanvas = document.getElementById('minimapCanvas');
+        const minimapCtx = minimapCanvas.getContext('2d');
+
+        const WORLD_WIDTH = 3500;
+        const WORLD_HEIGHT = 3500;
+        let screenWidth = window.innerWidth;
+        let screenHeight = window.innerHeight;
+
+        function resize() {
+            screenWidth = window.innerWidth;
+            screenHeight = window.innerHeight;
+            canvas.width = screenWidth;
+            canvas.height = screenHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        let camera = { x: 0, y: 0 };
+        let score = 0;
+        let isGameOver = false;
+        let mouseX = screenWidth / 2;
+        let mouseY = screenHeight / 2;
+
+        const INITIAL_RADIUS = 15;
+        const INITIAL_LENGTH = 35;
+
+        let player = {
+            x: WORLD_WIDTH / 2,
+            y: WORLD_HEIGHT / 2,
+            radius: INITIAL_RADIUS,
+            speed: 3.5,
+            angle: 0,
+            body: [],
+            length: INITIAL_LENGTH,
+            color: playerColorOptions[0],
+            magnetActive: false,
+            magnetTimeLeft: 0
+        };
+
+        const enemyColors = [
+            { head: '#ff9800', body1: '#ffb74d', body2: '#f57c00' },
+            { head: '#e91e63', body1: '#f48fb1', body2: '#c2185b' },
+            { head: '#9c27b0', body1: '#ce93d8', body2: '#7b1fa2' },
+            { head: '#2196f3', body1: '#90caf9', body2: '#1976d2' }
+        ];
+
+        let enemies = [];
+
+        function createEnemy(id) {
+            let startX = Math.random() * (WORLD_WIDTH - 400) + 200;
+            let startY = Math.random() * (WORLD_HEIGHT - 400) + 200;
+            let color = enemyColors[id % enemyColors.length];
+            let enemy = {
+                id: id, x: startX, y: startY, radius: INITIAL_RADIUS,
+                speed: 2.2 + Math.random() * 0.8, angle: Math.random() * Math.PI * 2,
+                body: [], length: INITIAL_LENGTH, color: color
+            };
+            for (let j = 0; j < enemy.length; j++) enemy.body.push({ x: startX - j * 5, y: startY });
+            return enemy;
+        }
+
+        const foodTypes = [
+            { type: 'burger', emoji: '🍔', pts: 15 },
+            { type: 'pizza', emoji: '🍕', pts: 12 },
+            { type: 'fries', emoji: '🍟', pts: 10 },
+            { type: 'donut', emoji: '🍩', pts: 10 },
+            { type: 'watermelon', emoji: '🍉', pts: 8 },
+            { type: 'apple', emoji: '🍎', pts: 5 }
+        ];
+
+        let foods = [];
+        let magnets = [];
+
+        function spawnFood(count = 1) {
+            for (let k = 0; k < count; k++) {
+                let randomType = foodTypes[Math.floor(Math.random() * foodTypes.length)];
+                foods.push({
+                    x: Math.random() * (WORLD_WIDTH - 100) + 50,
+                    y: Math.random() * (WORLD_HEIGHT - 100) + 50,
+                    ...randomType
+                });
+            }
+        }
+
+        function spawnMagnets(count = 1) {
+            for (let m = 0; m < count; m++) {
+                magnets.push({
+                    x: Math.random() * (WORLD_WIDTH - 200) + 100,
+                    y: Math.random() * (WORLD_HEIGHT - 200) + 100,
+                    emoji: '🧲'
+                });
+            }
+        }
+
+        function handleInput(e) {
+            let clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            let clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            if (clientX !== undefined && clientY !== undefined) {
+                mouseX = clientX;
+                mouseY = clientY;
+            }
+        }
+        window.addEventListener('mousemove', handleInput);
+        window.addEventListener('touchmove', handleInput);
+
+        setInterval(() => {
+            if (player.magnetActive && !isGameOver) {
+                player.magnetTimeLeft--;
+                document.getElementById('magnet-timer').innerText = player.magnetTimeLeft;
+                if (player.magnetTimeLeft <= 0) {
+                    player.magnetActive = false;
+                    document.getElementById('magnet-status').style.display = 'none';
+                }
+            }
+        }, 1000);
+
+        function update() {
+            if (isGameOver) return;
+
+            let dx = mouseX - screenWidth / 2;
+            let dy = mouseY - screenHeight / 2;
+            let targetAngle = Math.atan2(dy, dx);
+            let diff = targetAngle - player.angle;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            player.angle += diff * 0.12;
+
+            player.x += Math.cos(player.angle) * player.speed;
+            player.y += Math.sin(player.angle) * player.speed;
+            player.x = Math.max(player.radius, Math.min(WORLD_WIDTH - player.radius, player.x));
+            player.y = Math.max(player.radius, Math.min(WORLD_HEIGHT - player.radius, player.y));
+
+            player.body.unshift({ x: player.x, y: player.y });
+            while (player.body.length > player.length) player.body.pop();
+
+            camera.x = player.x - screenWidth / 2;
+            camera.y = player.y - screenHeight / 2;
+
+            // Pick Magnets
+            for (let mIdx = magnets.length - 1; mIdx >= 0; mIdx--) {
+                let mag = magnets[mIdx];
+                if (Math.hypot(player.x - mag.x, player.y - mag.y) < player.radius + 20) {
+                    player.magnetActive = true;
+                    player.magnetTimeLeft = 10;
+                    document.getElementById('magnet-status').style.display = 'block';
+                    document.getElementById('magnet-timer').innerText = '10';
+                    magnets.splice(mIdx, 1);
+                    setTimeout(() => spawnMagnets(1), 15000);
+                }
+            }
+
+            // Food Eating & Magnet
+            const MAGNET_RANGE = 400;
+            const PULL_SPEED = 14;
+
+            for (let i = foods.length - 1; i >= 0; i--) {
+                let f = foods[i];
+                let dist = Math.hypot(player.x - f.x, player.y - f.y);
+
+                if (player.magnetActive && dist < MAGNET_RANGE) {
+                    let angleToPlayer = Math.atan2(player.y - f.y, player.x - f.x);
+                    f.x += Math.cos(angleToPlayer) * PULL_SPEED;
+                    f.y += Math.sin(angleToPlayer) * PULL_SPEED;
+                }
+
+                if (dist < player.radius + 15) {
+                    score += f.pts;
+                    document.getElementById('score').innerText = score;
+                    player.length += 4;
+                    foods.splice(i, 1);
+                    spawnFood(1);
+                }
+            }
+
+            // Enemies
+            enemies.forEach(e => {
+                e.x += Math.cos(e.angle) * e.speed;
+                e.y += Math.sin(e.angle) * e.speed;
+                if (e.x < 50 || e.x > WORLD_WIDTH - 50) e.angle = Math.PI - e.angle;
+                if (e.y < 50 || e.y > WORLD_HEIGHT - 50) e.angle = -e.angle;
+                e.body.unshift({ x: e.x, y: e.y });
+                while (e.body.length > e.length) e.body.pop();
+
+                for (let bIdx = 3; bIdx < e.body.length; bIdx += 2) {
+                    let seg = e.body[bIdx];
+                    if (Math.hypot(player.x - seg.x, player.y - seg.y) < player.radius + e.radius * 0.8) {
+                        triggerGameOver();
+                        return;
+                    }
+                }
+            });
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+            ctx.lineWidth = 2;
+            const gridSize = 100;
+
+            let startX = Math.floor(camera.x / gridSize) * gridSize;
+            let endX = camera.x + screenWidth;
+            let startY = Math.floor(camera.y / gridSize) * gridSize;
+            let endY = camera.y + screenHeight;
+
+            for (let x = startX; x <= endX; x += gridSize) {
+                if (x >= 0 && x <= WORLD_WIDTH) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, Math.max(0, camera.y));
+                    ctx.lineTo(x, Math.min(WORLD_HEIGHT, camera.y + screenHeight));
+                    ctx.stroke();
+                }
+            }
+            for (let y = startY; y <= endY; y += gridSize) {
+ 
